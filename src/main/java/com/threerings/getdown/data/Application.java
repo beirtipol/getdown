@@ -1290,9 +1290,9 @@ public class Application
         }
 
         final MetaProgressObserver mpobs = new MetaProgressObserver(obs, totalSize);
-      final   boolean noUnpack = SysProps.noUnpack();
+        final   boolean noUnpack = SysProps.noUnpack();
         
-        ExecutorService executor = Executors.newFixedThreadPool(20);
+        ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
            
            
         int count = 1;
@@ -1301,47 +1301,43 @@ public class Application
                 throw new InterruptedException("m.applet_stopped");
             }
             
-            Runnable worker = new Thread(""+count++){
-
+            Runnable worker = new Thread("Digester "+count++){
 				@Override
 				public void run() {
-					
-            
-            mpobs.startElement(rsrc.getLocal().length());
-
-            if (rsrc.isMarkedValid()) {
-                if (alreadyValid != null) {
-                    alreadyValid[0]++;
-                }
-                mpobs.progress(100);
-                return;
-            }
-
-            try {
-                if (_digest.validateResource(rsrc, mpobs)) {
-                    // unpack this resource if appropriate
-                    if (noUnpack || !rsrc.shouldUnpack()) {
-                        // finally note that this resource is kosher
-                        rsrc.markAsValid();
-                        return;
-                    }
-                    if (rsrc.unpack()) {
-                        unpacked.add(rsrc);
-                        rsrc.markAsValid();
-                        return;
-                    }
-                    log.info("Failure unpacking resource", "rsrc", rsrc);
-                }
-
-            } catch (Exception e) {
-                log.info("Failure validating resource. Requesting redownload...",
-                    "rsrc", rsrc, "error", e);
-
-            } finally {
-                mpobs.progress(100);
-            }
-            failures.add(rsrc);
-            super.run();
+		            mpobs.startElement(rsrc.getLocal().length());
+		
+		            if (rsrc.isMarkedValid()) {
+		                if (alreadyValid != null) {
+		                    alreadyValid[0]++;
+		                }
+		                mpobs.progress(100);
+		                return;
+		            }
+		
+		            try {
+		                if (_digest.validateResource(rsrc, mpobs)) {
+		                    // unpack this resource if appropriate
+		                    if (noUnpack || !rsrc.shouldUnpack()) {
+		                        // finally note that this resource is kosher
+		                        rsrc.markAsValid();
+		                        return;
+		                    }
+		                    if (rsrc.unpack()) {
+		                        unpacked.add(rsrc);
+		                        rsrc.markAsValid();
+		                        return;
+		                    }
+		                    log.info("Failure unpacking resource", "rsrc", rsrc);
+		                }
+		
+		            } catch (Exception e) {
+		                log.info("Failure validating resource. Requesting redownload...",
+		                    "rsrc", rsrc, "error", e);
+		
+		            } finally {
+		                mpobs.progress(100);
+		            }
+		            failures.add(rsrc);
 				}};
         executor.execute(worker);
         }
