@@ -207,7 +207,7 @@ public class Resource
     /**
      * Computes the MD5 hash of the supplied file.
      */
-    public static String computeDigest (File target, MessageDigest md, ProgressObserver obs)
+    public String computeDigest (File target, MessageDigest md, ProgressObserver obs)
         throws IOException
     {
         md.reset();
@@ -311,7 +311,7 @@ public class Resource
 
     /** Used to sort the entries in a jar file. */
     protected static final Comparator<JarEntry> ENTRY_COMP = new Comparator<JarEntry>() {
-        @Override public int compare (JarEntry e1, JarEntry e2) {
+        public int compare (JarEntry e1, JarEntry e2) {
             return e1.getName().compareTo(e2.getName());
         }
     };
