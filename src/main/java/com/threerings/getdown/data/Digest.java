@@ -10,12 +10,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-
+import java.io.StringWriter;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.samskivert.io.StreamUtil;
 import com.samskivert.text.MessageUtil;
@@ -101,29 +104,43 @@ public class Digest
     public static void createDigest (List<Resource> resources, File output)
         throws IOException
     {
-        MessageDigest md = getMessageDigest();
         StringBuilder data = new StringBuilder();
+        final List<String> digestStrings = Collections.synchronizedList(new ArrayList<String>());
         PrintWriter pout = null;
         try {
             pout = new PrintWriter(new OutputStreamWriter(new FileOutputStream(output), "UTF-8"));
 
+            ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+            
             // compute and append the MD5 digest of each resource in the list
-            for (Resource rsrc : resources) {
-                String path = rsrc.getPath();
-                try {
-                    String digest = rsrc.computeDigest(md, null);
-                    note(data, path, digest);
-                    pout.println(path + " = " + digest);
-                } catch (Throwable t) {
-                    throw (IOException) new IOException(
-                        "Error computing digest for: " + rsrc).initCause(t);
-                }
+            for (final Resource rsrc : resources) {
+            	threadPool.execute(new Runnable(){
+
+					public void run() {
+		                String path = rsrc.getPath();
+		                try {
+		                    String digest = rsrc.computeDigest(getMessageDigest(), null);
+		                    digestStrings.add(path + " = " + digest);
+		                } catch (Throwable t) {
+		                    throw new RuntimeException(
+		                        "Error computing digest for: " + rsrc, t);
+		                }
+					}});
             }
+            threadPool.shutdown();
+            while (!threadPool.isTerminated()) {
+            }
+            
+            for (String digestString : digestStrings) {
+				pout.println(digestString);
+				data.append(digestString);
+				data.append("\n");
+			}
 
             // finally compute and append the digest for the file contents
-            md.reset();
+            getMessageDigest().reset();
             byte[] contents = data.toString().getBytes("UTF-8");
-            pout.println(DIGEST_FILE + " = " + StringUtil.hexlate(md.digest(contents)));
+            pout.println(DIGEST_FILE + " = " + StringUtil.hexlate(getMessageDigest().digest(contents)));
 
         } finally {
             StreamUtil.close(pout);
